@@ -24,7 +24,7 @@ time it's regenerated, and published in three forms:
 | Document | Purpose |
 |---|---|
 | [Data dictionary](data-dictionary.md) | Column-by-column reference, dtypes, value sets, caveats |
-| [Filter / pivot recipes](filter-pivot-recipes.md) | pandas / R / Excel patterns for common questions |
+| [Filter / pivot recipes](filter-pivot-recipes.md) | Python/pandas, R/tidyverse, SQL/DuckDB patterns for common questions |
 | [Methodology](methodology.qmd) | How each source is extracted, validated, and harmonized |
 | [Changelog](changelog.qmd) | Per-vintage changes, schema migrations, known issues |
 

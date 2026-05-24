@@ -20,6 +20,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Analyst-side stack — DuckDB for SQL-over-CSV recipes (see docs/filter-pivot-recipes.md).
+# Optional because the recipes still work from the DuckDB CLI without the
+# Python package; only install when notebooks or scripts call duckdb.sql().
+analysis = [
+    "duckdb>=1.0",
+]
 pdf = [
     "pdfplumber>=0.11",
     "pypdf>=4",
