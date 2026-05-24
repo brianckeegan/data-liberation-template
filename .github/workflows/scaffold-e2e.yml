@@ -1,0 +1,108 @@
+# End-to-end check that this template can be rendered by the upstream
+# scaffold.py and produces a working project.
+#
+# Fetches `scripts/scaffold.py` from the data-liberation-skill repo (at the
+# ref specified by the dispatching event, or HEAD of main if not specified),
+# runs it against this checkout (`--template-repo .`), then lints and tests
+# the rendered project.
+#
+# Triggers:
+#   * push to main / PRs / manual dispatch — covers template-side changes
+#   * repository_dispatch (type: skill-updated) — fired by the skill repo on
+#     scaffold.py / reference changes, so we catch the case where a skill
+#     change makes this template un-renderable
+#
+# Manual dispatch input `skill_ref` lets you rehearse a pre-release scaffold
+# script before it lands on the skill's main.
+
+name: scaffold-e2e
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skill_ref:
+        description: "Skill ref (branch/tag/SHA) to pull scaffold.py from. Default: main."
+        required: false
+        default: "main"
+  repository_dispatch:
+    types: [skill-updated]
+
+jobs:
+  scaffold-lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out template (this repo)
+        uses: actions/checkout@v4
+        with:
+          path: template
+
+      - name: Determine skill ref
+        id: ref
+        run: |
+          REF="${{ github.event.inputs.skill_ref }}"
+          if [ -z "$REF" ]; then
+            REF="${{ github.event.client_payload.skill_ref }}"
+          fi
+          if [ -z "$REF" ]; then
+            REF="main"
+          fi
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "Using skill ref: $REF"
+
+      - name: Fetch scaffold.py from data-liberation-skill
+        run: |
+          mkdir -p skill-scripts
+          curl -sSfL \
+            "https://raw.githubusercontent.com/brianckeegan/data-liberation-skill/${{ steps.ref.outputs.ref }}/scripts/scaffold.py" \
+            -o skill-scripts/scaffold.py
+          echo "Fetched scaffold.py from skill @ ${{ steps.ref.outputs.ref }}"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Scaffold this template into a test project
+        run: |
+          python skill-scripts/scaffold.py \
+            --dest /tmp/e2e-project \
+            --name e2e-test-project \
+            --description "End-to-end CI scaffold smoke test" \
+            --author "CI <ci@example.org>" \
+            --owner ci-bot \
+            --template-repo "$(pwd)/template"
+
+      - name: Assert no unresolved placeholders
+        run: |
+          if grep -rE '\{\{ *[a-z_]+ *\}\}' /tmp/e2e-project; then
+            echo "::error::Unresolved {{ placeholder }} tokens in rendered output"
+            exit 1
+          fi
+          echo "✓ All placeholders resolved"
+
+      - name: Sync rendered project's dependencies
+        working-directory: /tmp/e2e-project
+        run: uv sync --extra publish
+
+      - name: Lint rendered project
+        working-directory: /tmp/e2e-project
+        run: |
+          uv run ruff check scripts tests
+          uv run ruff format --check scripts tests
+
+      - name: Test rendered project
+        working-directory: /tmp/e2e-project
+        run: uv run pytest -q
+
+      - name: CLI sanity-check on rendered project
+        working-directory: /tmp/e2e-project
+        run: |
+          uv run python -m scripts.pipeline --help
+          uv run python -m scripts.publish --help
