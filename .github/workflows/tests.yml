@@ -10,6 +10,12 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # This workflow is shipped to scaffolded projects, where it tests the
+    # rendered code. On the template repo itself, the {{ placeholders }}
+    # haven't been substituted (e.g., pyproject.toml's project.name is
+    # literally "{{ project_slug }}"), so uv sync would fail. The template
+    # repo's own validation runs in scaffold-e2e.yml instead.
+    if: github.repository != 'brianckeegan/data-liberation-template'
     steps:
       - uses: actions/checkout@v4
         # No `lfs: true` here — schema and unit tests run against
