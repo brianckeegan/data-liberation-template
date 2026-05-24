@@ -17,7 +17,7 @@ GitHub Pages.
 | example | 2024 | c | _(null)_ | ... |
 
 Full schema in [`docs/data-dictionary.md`](docs/data-dictionary.md);
-sample recipes for pandas / R / Excel in
+sample recipes for Python/pandas, R/tidyverse, and SQL/DuckDB in
 [`docs/filter-pivot-recipes.md`](docs/filter-pivot-recipes.md).
 
 ## How to use it
@@ -43,22 +43,60 @@ The methodology site at
 - Per-vintage changelog
 - Citation guidance
 
-### Load it into pandas
+### Python / pandas
 
 ```python
 import pandas as pd
-df = pd.read_parquet("data/processed/{{ project_slug }}.parquet")
-# or, from the published instance directly:
-df = pd.read_csv("https://{{ project_slug }}.vercel.app/{{ project_slug }}/{{ project_slug }}.csv?_size=max")
+
+df = pd.read_csv(
+    "data/processed/{{ project_slug }}.csv",
+    dtype=str,  # safe default — coerce specific columns explicitly below
+)
+
+# Coerce numeric columns where the schema declares them numeric:
+# df["votes"] = pd.to_numeric(df["votes"], errors="coerce")
+
+# Or pull directly from the published instance:
+# df = pd.read_csv("https://{{ project_slug }}.vercel.app/{{ project_slug }}/{{ project_slug }}.csv?_size=max")
 ```
 
-### Load it into R
+### R / tidyverse
 
 ```r
-library(arrow)
-df <- read_parquet("data/processed/{{ project_slug }}.parquet")
-# or from the published instance:
-df <- readr::read_csv("https://{{ project_slug }}.vercel.app/{{ project_slug }}/{{ project_slug }}.csv?_size=max")
+library(readr)
+library(dplyr)
+
+df <- read_csv(
+  "data/processed/{{ project_slug }}.csv",
+  col_types = cols(.default = col_character())
+)
+
+# Coerce numeric columns explicitly:
+# df <- df |> mutate(votes = as.integer(votes))
+
+# Or pull directly from the published instance:
+# df <- read_csv("https://{{ project_slug }}.vercel.app/{{ project_slug }}/{{ project_slug }}.csv?_size=max")
+```
+
+### SQL / DuckDB
+
+```sql
+-- Query the CSV directly — no load step, no schema definition needed.
+-- Use the DuckDB CLI, the duckdb Python package, or paste into the
+-- published Datasette SQL editor.
+
+SELECT *
+FROM read_csv('data/processed/{{ project_slug }}.csv')
+LIMIT 5;
+
+-- DuckDB infers types, which can lose leading zeros on ID-like columns.
+-- Pin string-typed columns explicitly when leading zeros matter:
+SELECT *
+FROM read_csv(
+  'data/processed/{{ project_slug }}.csv',
+  types = {'observation_id': 'VARCHAR', 'vintage': 'VARCHAR'}
+)
+LIMIT 5;
 ```
 
 ## Movement context

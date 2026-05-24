@@ -9,12 +9,15 @@ title: "Filter / pivot recipes"
 > matrices, source-comparison columns, geographic roll-ups) are
 > generated on demand. This file is the cookbook.
 >
-> Recipes ship for **{{ consumer_stack }}**. Add more as common
-> downstream uses emerge.
+> Recipes ship in three stacks — **Python/pandas**, **R/tidyverse**,
+> and **SQL/DuckDB** — all reading the same canonical CSV at
+> `data/processed/{{ project_slug }}.csv`. Pick the one that matches
+> the consumer audience (**{{ consumer_stack }}** by default for this
+> project). Add more stacks as common downstream uses emerge.
 
 ## Setup
 
-### Python (pandas)
+### Python / pandas
 
 ```python
 import pandas as pd
@@ -28,7 +31,7 @@ df = pd.read_csv(
 # df["votes"] = pd.to_numeric(df["votes"], errors="coerce")
 ```
 
-### R (tidyverse)
+### R / tidyverse
 
 ```r
 library(readr); library(dplyr); library(tidyr)
@@ -40,6 +43,28 @@ df <- read_csv(
 
 # Coerce numeric columns explicitly:
 # df <- df |> mutate(votes = as.integer(votes))
+```
+
+### SQL / DuckDB
+
+```sql
+-- Use the DuckDB CLI (`duckdb`), the `duckdb` Python package, or paste
+-- straight into the published Datasette SQL editor (Datasette uses SQLite,
+-- not DuckDB, but the SELECT/GROUP BY/PIVOT syntax below is portable for
+-- everything except `read_csv()`; Datasette already has the data loaded).
+
+-- For local DuckDB sessions, create a reusable view over the CSV so the
+-- recipes below can just `FROM data` instead of repeating the path:
+CREATE OR REPLACE VIEW data AS
+SELECT *
+FROM read_csv(
+  'data/processed/{{ project_slug }}.csv',
+  -- Keep ID-like columns as text so leading zeros survive.
+  types = {'observation_id': 'VARCHAR', 'vintage': 'VARCHAR', 'source': 'VARCHAR'}
+);
+
+-- Sanity check:
+SELECT COUNT(*) AS rows, COUNT(DISTINCT source) AS sources FROM data;
 ```
 
 ---
@@ -74,6 +99,20 @@ wide <- df |>
   )
 ```
 
+### DuckDB
+
+```sql
+-- DuckDB has a native PIVOT statement; the inner SELECT is the long form
+-- you want to spread, the ON clause is the categorical that becomes columns.
+PIVOT (
+  SELECT observation_id, source, "<numeric_column>"
+  FROM data
+  WHERE vintage = '2024'
+)
+ON source
+USING first("<numeric_column>");  -- or SUM(...) if rows can repeat
+```
+
 ---
 
 ## Recipe 2 — Year × source matrix of counts
@@ -100,6 +139,18 @@ counts <- df |>
   count(vintage, source) |>
   pivot_wider(names_from = source, values_from = n, values_fill = 0) |>
   arrange(vintage)
+```
+
+### DuckDB
+
+```sql
+PIVOT (
+  SELECT vintage, source FROM data
+)
+ON source
+USING count(*)
+GROUP BY vintage
+ORDER BY vintage;
 ```
 
 ---
@@ -139,6 +190,23 @@ district_totals <- df |>
             .groups = "drop")
 ```
 
+### DuckDB
+
+```sql
+SELECT
+  d.vintage,
+  c.district,
+  SUM(TRY_CAST(d."<numeric_column>" AS BIGINT)) AS total
+FROM data d
+LEFT JOIN read_csv(
+    'data/lookups/precinct_to_district.csv',
+    types = {'precinct': 'VARCHAR', 'district': 'VARCHAR'}
+  ) c
+  USING (precinct)
+GROUP BY d.vintage, c.district
+ORDER BY d.vintage, c.district;
+```
+
 ---
 
 ## Recipe 4 — Cross-source concept comparison
@@ -175,6 +243,18 @@ compare <- df |>
     names_from  = source,
     values_from = `<value_column>`
   )
+```
+
+### DuckDB
+
+```sql
+PIVOT (
+  SELECT vintage, observation_id, concept, source, "<value_column>"
+  FROM data
+  WHERE concept IS NOT NULL
+)
+ON source
+USING first("<value_column>");
 ```
 
 ---
