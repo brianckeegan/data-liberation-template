@@ -153,6 +153,37 @@ methodology site.
 
 If you cite or republish, please link back to this repository and to
 the upstream sources documented in `data/processed/provenance.csv`.
+**Note:** the source's terms-of-use may carry forward — see Governance
+below.
+
+## Governance
+
+Civic-data projects publish information about people, institutions, and
+systems whose interests aren't always aligned with publication. This
+project commits to the following:
+
+- **Source license is honored.** The upstream publisher's terms, where
+  applicable, are documented in `data/processed/provenance.csv` and
+  propagate forward; the CC-BY license above applies to the
+  *project's* transformations, not to upstream content.
+- **PII redaction at the publish boundary.** The originals retain
+  whatever the publisher published; the processed CSV obeys this
+  project's redaction policy, documented per column in
+  `docs/data-dictionary.md` under each variable's *Known caveats*.
+- **Out-of-scope uses.** The maintainers do not endorse downstream
+  uses for enforcement, predictive policing, eviction targeting, or
+  immigration enforcement. (Customize this list to the dataset's
+  actual subject matter.)
+- **Error-reporting path.** Open a GitHub issue using the *Data
+  correction* template; corrections are logged in
+  `docs/changelog.qmd` with the affected vintages named and
+  propagated on the next refresh — never silently rewritten.
+- **Vintage tagging for citation.** Each refresh ships under a
+  GitHub Release tag (e.g., `v2026.05.01`); cite that tag if you
+  want the dataset you cited to remain stable.
+
+See `references/project-template.md#governance` in the
+`data-liberation` Claude skill for the full governance checklist.
 
 ## Contributing
 

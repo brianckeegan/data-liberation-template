@@ -48,6 +48,19 @@ uv run python -m scripts.publish serve            # serve Datasette locally on :
 
 ## Design decisions worth defending
 
+**The schema is a contract.** `LONG_COLUMNS` + the pandera class
+together are a *contract* the processed CSV obeys. Parsers translate
+the publisher's contract into this contract; `_normalize.py` helpers
+are reusable contract-preserving operations. Two failure modes look
+similar but require different fixes: a *contract violation* means
+the parser produced something the schema rejected (fix the parser);
+a *contract change* means the project decided to evolve `LONG_COLUMNS`
+or a dtype (a schema migration — document in `docs/changelog.qmd`).
+Concept-catalog entries function as contracts at the
+cross-source-equivalence level. See
+`references/data-modeling.md#the-canonical-schema` in the
+`data-liberation` Claude skill.
+
 **Tidy long, not wide.** One row per observation, one column per
 variable, harmonization-by-concept-column. This makes cross-source
 comparison and time-series analysis straightforward; the wide pivot is
@@ -55,7 +68,8 @@ a downstream consumer choice (see `docs/filter-pivot-recipes.md`).
 
 **No imputation in the pipeline.** The pipeline emits what the sources
 say; missingness is preserved. Imputation is the analyst's choice, not
-ours to impose.
+ours to impose. (Rubin's MCAR/MAR/MNAR classification belongs in the
+data dictionary's caveat section, per column.)
 
 **`dtype=str` by default.** Leading zeros (precinct IDs, FIPS, ZIP)
 survive a round trip through the pipeline. Numeric columns are
@@ -105,6 +119,46 @@ Examples: a specific vintage uses scanned PDFs, certain columns are
 imputed-but-not-marked, FIPS codes are missing for a subset of records.
 This is the section reporters and downstream users read.)
 
+## Governance
+
+Decisions to make explicit *before* the project ships a first vintage.
+See `references/project-template.md#governance` in the
+`data-liberation` Claude skill for the full checklist.
+
+- **Source license.** The upstream's terms are documented per source
+  in `data/processed/provenance.csv` (and in this AGENTS.md if the
+  source carries non-default terms that affect the project's
+  redistributable license).
+- **Data subjects.** Who is in this dataset, and what's the right
+  posture for them? PII redaction policy lives in `scripts/publish.py`
+  and per-column in `docs/data-dictionary.md` *Known caveats*.
+- **Out-of-scope uses.** Uses the maintainers do not endorse —
+  named explicitly in the README's *Governance* section. Common
+  examples: enrichment for enforcement, predictive policing,
+  eviction targeting, immigration enforcement. Adapt to the
+  dataset's subject matter.
+- **Schema-revision discipline.** A change to `LONG_COLUMNS` or to
+  a column's declared dtype is a *contract change*, not a bug fix.
+  Require an entry in `docs/changelog.qmd` naming what breaks
+  downstream.
+- **Concept-catalog amendments.** A new cross-source equivalence
+  requires a non-empty caveats list naming what is and isn't
+  comparable. A concept with no caveats is a foot-gun.
+- **Refresh-PR review checklist.** Reviewers look at: row-count
+  delta in `data/audit/summary-*.md`, new entries in
+  `extraction_errors.json`, new "Empty sources" flags, reconcile
+  mismatches. The `refresh.yml.disabled` template's PR-body
+  checklist makes this explicit.
+- **Error-reporting + correction path.** Downstream users open a
+  GitHub issue (template: *Data correction*); corrections land as
+  PRs with a `docs/changelog.qmd` entry naming the affected
+  vintages. Don't silently rewrite history; downstream consumers
+  may have cited the previous values.
+- **Citation guidance.** The README's BibTeX block includes a
+  vintage tag. Each refresh ships under a GitHub Release tag
+  (e.g., `v2026.05.01`) so citations to a specific vintage remain
+  stable even after corrections.
+
 ## How to add a new source
 
 1. Add a `Source` subclass to `scripts/sources.py` with `name`,
@@ -144,10 +198,13 @@ This is the section reporters and downstream users read.)
 ## References
 
 The Claude `data-liberation` skill at the root of this project
-(or `/mnt/skills/user/data-liberation/` if used as a skill) contains
-deeper references on:
+(or `~/.claude/skills/data-liberation/` if used as a user-level
+skill) contains deeper references on:
 
-- `references/data-modeling.md` — long vs. wide, dtypes, the concept catalog
-- `references/discovery-and-audit.md` — recurring-refresh, reconcile, audit patterns
+- `references/data-modeling.md` — tidy long-form, schema-as-contract, concept catalogs, the five-dimension quality framework, pandera validation
+- `references/cleaning-and-standardization.md` — the 9-step parser-time pipeline (profile / structural fixes / dedup / missing values / outliers / normalization / validation + reject port / PII redaction / docs); Jaro-Winkler + Levenshtein for fuzzy matching; Rubin's MCAR/MAR/MNAR for missingness; the impossible-value range table
+- `references/discovery-and-audit.md` — pre-extraction bulletproofing; discover/audit/reconcile patterns; recurring-refresh
+- `references/project-template.md` — full skeleton spec; the *Governance* section is the source of truth for the checklist above
+- `references/toolchain-pdf.md`, `toolchain-tabular.md`, `toolchain-documents.md`, `toolchain-scraping.md` — extraction toolchain decision trees
 - `references/toolchain-datasette.md`, `toolchain-quarto.md`, `toolchain-lfs.md` — the three publishing surfaces in depth
-- `references/project-template.md` — full skeleton spec
+- `references/movement-history.md` — civic-data lineage, the empowering-intermediary framing, and the critical perspectives every project should keep in view
