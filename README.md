@@ -99,6 +99,10 @@ FROM read_csv(
 LIMIT 5;
 ```
 
+### Find stories in it
+
+The dataset is the input to a separate craft — finding the story, sanity-checking the finding, and writing it without overclaiming. The [*New York Times* data-training materials](https://github.com/nytimes/data-training) are the canonical newsroom reference for that practice: brainstorming story angles from a dataset, verification habits that prevent common misreadings, and editorial review of data stories. The materials are Google-Sheets-first (the [Google Sheets cheat sheets](https://github.com/nytimes/data-training/tree/master/Google-sheets-cheat-sheets) translate cleanly to the pandas / R / DuckDB recipes above), but the *methodological* content — especially [*How-Not-To-Be-Wrong*](https://github.com/nytimes/data-training/blob/master/Various-tip-sheets/How-Not-To-Be-Wrong.docx) and [*Data-Stories-Brainstorming-Guide*](https://github.com/nytimes/data-training/blob/master/Various-tip-sheets/Data-Stories-Brainstorming-Guide.docx) — is what makes a story honest. This project's data dictionary, provenance sidecar, and caveats sections are the *inputs* to that practice; the practice itself is downstream.
+
 ## Movement context
 
 This project participates in a longer tradition of public-interest
