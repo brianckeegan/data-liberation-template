@@ -54,6 +54,13 @@ publish = [
     "sqlite-utils>=3.36",
     "datasette-publish-vercel>=0.14",
 ]
+# DocumentCloud upload — the fourth publishing surface, for source PDFs /
+# FOIA responses / scans with reader-facing OCR + page-anchored permalinks
+# + embed iframes. See scripts/upload_documentcloud.py and the
+# `references/toolchain-documentcloud.md` reference in the data-liberation skill.
+documentcloud = [
+    "python-documentcloud>=4.0",
+]
 
 [dependency-groups]
 dev = [

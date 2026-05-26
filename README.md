@@ -4,9 +4,11 @@
 
 A reproducible data-liberation pipeline producing a tidy long-form
 dataset from public sources, with provenance, audit reports, an
-interactive [Datasette](https://datasette.io/) instance, and a
+interactive [Datasette](https://datasette.io/) instance, a
 methodology site rendered with [Quarto](https://quarto.org/) on
-GitHub Pages.
+GitHub Pages, and the source documents themselves hosted on
+[DocumentCloud](https://www.documentcloud.org/) — so every published
+number traces back, page by page, to the original it came from.
 
 ## A peek at the data
 
@@ -185,6 +187,13 @@ project commits to the following:
 - **Vintage tagging for citation.** Each refresh ships under a
   GitHub Release tag (e.g., `v2026.05.01`); cite that tag if you
   want the dataset you cited to remain stable.
+- **Source-document chain of custody.** Every source artifact lives
+  on DocumentCloud (URL recorded per source × vintage in
+  `data/processed/provenance.csv`'s `documentcloud_url` column),
+  with reader-facing OCR and page-level permalinks. Following a
+  published number back to its origin is a click, not a download.
+  Per-source access posture (public / organization / private) is
+  recorded in `data/lookups/documentcloud_projects.yaml`.
 
 See `references/project-template.md#governance` in the
 `data-liberation` Claude skill for the full governance checklist.

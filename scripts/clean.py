@@ -142,6 +142,8 @@ def _provenance_from_manifests() -> pd.DataFrame:
                 "sha256",
                 "extraction_quality",
                 "extraction_notes",
+                "documentcloud_url",
+                "documentcloud_access",
             ]
         )
     for source_dir in sorted(DATA_ORIGINAL.iterdir()):
@@ -165,6 +167,10 @@ def _provenance_from_manifests() -> pd.DataFrame:
                     "sha256": entry.get("sha256", ""),
                     "extraction_quality": "clean",  # override per-source for OCR/scraped
                     "extraction_notes": "",
+                    # Populated by scripts/upload_documentcloud.py after a
+                    # successful upload; empty for files not (yet) on DocumentCloud.
+                    "documentcloud_url": entry.get("documentcloud_url", ""),
+                    "documentcloud_access": entry.get("documentcloud_access", ""),
                 }
             )
     return pd.DataFrame(rows)
