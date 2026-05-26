@@ -124,13 +124,9 @@ def upload_source(slug: str, force: bool = False) -> int:
         if path.is_dir() or path.name == "manifest.json":
             continue
         vintage = (
-            path.relative_to(source_dir).parts[0]
-            if path.relative_to(source_dir).parts
-            else ""
+            path.relative_to(source_dir).parts[0] if path.relative_to(source_dir).parts else ""
         )
-        sha256 = (
-            ""  # Loaded from the source's manifest.json — left abstract for the stub.
-        )
+        sha256 = ""  # Loaded from the source's manifest.json — left abstract for the stub.
 
         if not force:
             existing = _already_uploaded(client, sha256, project_id)
