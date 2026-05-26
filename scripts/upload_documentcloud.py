@@ -104,8 +104,11 @@ def upload_source(slug: str, force: bool = False) -> int:
     source_label = meta.get("source_label", slug)
 
     if not project_id:
-        log.warning("no_project_id", source=slug,
-                    hint=f"add to {PROJECTS_YAML.relative_to(Path.cwd())}")
+        log.warning(
+            "no_project_id",
+            source=slug,
+            hint=f"add to {PROJECTS_YAML.relative_to(Path.cwd())}",
+        )
         return 1
 
     source_dir = DATA_ORIGINAL / slug
@@ -120,16 +123,27 @@ def upload_source(slug: str, force: bool = False) -> int:
     for path in sorted(source_dir.rglob("*")):
         if path.is_dir() or path.name == "manifest.json":
             continue
-        vintage = path.relative_to(source_dir).parts[0] if path.relative_to(source_dir).parts else ""
-        sha256 = ""  # Loaded from the source's manifest.json — left abstract for the stub.
+        vintage = (
+            path.relative_to(source_dir).parts[0]
+            if path.relative_to(source_dir).parts
+            else ""
+        )
+        sha256 = (
+            ""  # Loaded from the source's manifest.json — left abstract for the stub.
+        )
 
         if not force:
             existing = _already_uploaded(client, sha256, project_id)
             if existing:
                 log.info("already_uploaded", source=slug, file=path.name, url=existing)
-                rows.append({"source": slug, "vintage": vintage,
-                             "documentcloud_url": existing,
-                             "documentcloud_access": access})
+                rows.append(
+                    {
+                        "source": slug,
+                        "vintage": vintage,
+                        "documentcloud_url": existing,
+                        "documentcloud_access": access,
+                    }
+                )
                 skipped += 1
                 continue
 
@@ -142,16 +156,26 @@ def upload_source(slug: str, force: bool = False) -> int:
                 access=access,
             )
             log.info("uploaded", source=slug, file=path.name, url=doc.canonical_url)
-            rows.append({"source": slug, "vintage": vintage,
-                         "documentcloud_url": doc.canonical_url,
-                         "documentcloud_access": access})
+            rows.append(
+                {
+                    "source": slug,
+                    "vintage": vintage,
+                    "documentcloud_url": doc.canonical_url,
+                    "documentcloud_access": access,
+                }
+            )
             uploaded += 1
         except Exception as exc:  # noqa: BLE001
             log.error("upload_failed", source=slug, file=path.name, error=str(exc))
             errored += 1
 
-    log.info("upload_summary", source=slug,
-             uploaded=uploaded, skipped=skipped, errored=errored)
+    log.info(
+        "upload_summary",
+        source=slug,
+        uploaded=uploaded,
+        skipped=skipped,
+        errored=errored,
+    )
     _merge_into_provenance(rows)
     return 0 if errored == 0 else 1
 
@@ -165,13 +189,13 @@ def _merge_into_provenance(rows: list[dict]) -> None:
     for col in ("documentcloud_url", "documentcloud_access"):
         if col not in prov.columns:
             prov[col] = ""
-    prov = prov.merge(new, on=["source", "vintage"], how="left",
-                       suffixes=("", "_new"))
+    prov = prov.merge(new, on=["source", "vintage"], how="left", suffixes=("", "_new"))
     for col in ("documentcloud_url", "documentcloud_access"):
         new_col = f"{col}_new"
         if new_col in prov.columns:
-            prov[col] = prov[new_col].where(prov[new_col].notna() & (prov[new_col] != ""),
-                                             prov[col])
+            prov[col] = prov[new_col].where(
+                prov[new_col].notna() & (prov[new_col] != ""), prov[col]
+            )
             prov = prov.drop(columns=[new_col])
     prov.to_csv(PROVENANCE_CSV, index=False)
     log.info("wrote_provenance", path=str(PROVENANCE_CSV))
@@ -182,8 +206,11 @@ def main(argv: list[str] | None = None) -> int:
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--source", help="Source registry slug to upload")
     g.add_argument("--all", action="store_true", help="Upload all registered sources")
-    p.add_argument("--force", action="store_true",
-                   help="Re-upload even if a doc with the same sha256 is already in the project")
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-upload even if a doc with the same sha256 is already in the project",
+    )
     args = p.parse_args(argv)
 
     if args.all:
