@@ -37,6 +37,7 @@ uv run python -m scripts.publish serve            # serve Datasette locally on :
 | `scripts/schema.py` | Canonical column list + pandera schema. The contract parsers obey. |
 | `scripts/concepts.py` | Cross-source harmonization (optional; multi-source projects only). |
 | `scripts/publish.py` | SQLite + metadata.yaml builder; serves and deploys Datasette. |
+| `scripts/upload_documentcloud.py` | Uploads source PDFs / scans / FOIA responses to DocumentCloud; writes URLs back into `provenance.csv`. Idempotent (skips files already uploaded by sha256). |
 | `data/original/` | Immutable raw downloads. Never edit in place. LFS-tracked for large files. |
 | `data/processed/` | Tidy long-form deliverable + `.db` + `metadata.yaml` + `provenance.csv`. |
 | `data/audit/` | Auto-generated; do not hand-edit. |
@@ -91,13 +92,18 @@ regressions loudly.
 never edits in place; a new vintage is a new file under a new
 directory.
 
-**Three publish surfaces, not one.** Datasette is the *data
+**Four publish surfaces, not one.** Datasette is the *data
 interface* (Vercel/Fly/Cloud Run); Quarto + GitHub Pages is the *prose
-about the data*; LFS + Releases are the *bulk distribution* layer.
-Each plays to its strengths. The architectural constraint that LFS
-does not work with GitHub Pages is why these are three workflows
-rather than one — see `references/toolchain-lfs.md` in the
-data-liberation skill.
+about the data*; LFS + Releases are the *bulk distribution* layer;
+DocumentCloud is the *source documents themselves* with reader UI,
+auto-OCR, page-anchored permalinks, and embed iframes that the Quarto
+site drops inline. Each plays to its strengths. The architectural
+constraint that LFS does not work with GitHub Pages is why publishing
+is split across surfaces rather than one workflow — see
+`references/toolchain-lfs.md` and `references/toolchain-documentcloud.md`
+in the data-liberation skill. DocumentCloud closes the gap LFS leaves:
+where LFS dumps raw artifacts as opaque downloads, DocumentCloud gives
+the reader a page-anchored permalink with searchable OCR text.
 
 ## Deployment surface
 
@@ -106,6 +112,7 @@ data-liberation skill.
 | Documentation site | `https://{{ owner }}.github.io/{{ project_slug }}/` | `gh-pages.yml` workflow renders `docs/*.qmd` to gh-pages branch |
 | Queryable data | `https://{{ project_slug }}.vercel.app/` (or Fly / Cloud Run) | `publish.yml` workflow runs `python -m scripts.publish deploy` |
 | Bulk download | GitHub Releases attached to each tagged version | Manual via the GitHub UI, or `release.yml` if configured |
+| Source documents | `https://www.documentcloud.org/projects/<id>` (one project per source slug) | `uv sync --extra documentcloud` then `uv run python -m scripts.upload_documentcloud --source <slug>`. Project IDs + access levels live in `data/lookups/documentcloud_projects.yaml`. Credentials in `.env` (`DOCUMENTCLOUD_USERNAME` / `DOCUMENTCLOUD_PASSWORD`) — gitignored. |
 
 The `metadata.yaml` Datasette reads is generated from
 `docs/data-dictionary.md` by `scripts/publish.py:generate_metadata`.
@@ -132,6 +139,13 @@ See `references/project-template.md#governance` in the
 - **Data subjects.** Who is in this dataset, and what's the right
   posture for them? PII redaction policy lives in `scripts/publish.py`
   and per-column in `docs/data-dictionary.md` *Known caveats*.
+- **DocumentCloud access posture.** Which sources are uploaded as
+  `public`, `organization`, or `private` (the three DocumentCloud
+  access levels). Default: `public` for liberated public-record
+  corpora. Use `organization` for in-progress liberation or
+  unresolved FOIA responses, `private` for sensitive review.
+  Schema-of-record is `data/lookups/documentcloud_projects.yaml`;
+  the rationale per source lives here.
 - **Out-of-scope uses.** Uses the maintainers do not endorse —
   named explicitly in the README's *Governance* section. Common
   examples: enrichment for enforcement, predictive policing,
@@ -203,6 +217,7 @@ skill) contains deeper references on:
 
 - `references/data-modeling.md` — tidy long-form, schema-as-contract, concept catalogs, the five-dimension quality framework, pandera validation
 - `references/cleaning-and-standardization.md` — the 9-step parser-time pipeline (profile / structural fixes / dedup / missing values / outliers / normalization / validation + reject port / PII redaction / docs); Jaro-Winkler + Levenshtein for fuzzy matching; Rubin's MCAR/MAR/MNAR for missingness; the impossible-value range table
+- `references/toolchain-documentcloud.md` — DocumentCloud as the fourth publishing surface (source PDFs with reader UI + auto-OCR + page-anchored permalinks + embed iframes); upload patterns; access levels as a governance decision; the `documentcloud_url` + `documentcloud_access` columns in `provenance.csv` for chain-of-custody from CSV row → source page
 - `references/discovery-and-audit.md` — pre-extraction bulletproofing; discover/audit/reconcile patterns; recurring-refresh
 - `references/project-template.md` — full skeleton spec; the *Governance* section is the source of truth for the checklist above
 - `references/toolchain-pdf.md`, `toolchain-tabular.md`, `toolchain-documents.md`, `toolchain-scraping.md` — extraction toolchain decision trees
